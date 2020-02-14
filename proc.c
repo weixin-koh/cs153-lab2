@@ -88,6 +88,7 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  p->priority = 30;
 
   release(&ptable.lock);
 
@@ -199,6 +200,7 @@ fork(void)
   np->sz = curproc->sz;
   np->parent = curproc;
   *np->tf = *curproc->tf;
+  np->priority = curproc->priority;
 
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
@@ -296,6 +298,7 @@ wait(int *status)
         p->name[0] = 0;
         p->killed = 0;
         p->state = UNUSED;
+        p->priority = 30;
         release(&ptable.lock);
         if(status != 0){
           *status = p->status;
@@ -356,6 +359,24 @@ waitpid(int pid, int *status, int options)
   }
   sleep(curproc, &ptable.lock);   
 }
+
+//Priority implementation for Lab2
+int
+setpriority(int priority) {
+  acquire(&ptable.lock);
+
+  struct proc *curproc = myproc();
+  int previous_p = curproc->priority;
+
+  curproc->priority = priority;
+ 
+  release(&ptable.lock);
+
+  yield();
+  return previous_p;
+
+}
+
 //PAGEBREAK: 42
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
@@ -370,6 +391,8 @@ scheduler(void)
   struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
+
+  struct proc *i;
   
   for(;;){
     // Enable interrupts on this processor.
@@ -381,6 +404,15 @@ scheduler(void)
       if(p->state != RUNNABLE)
         continue;
 
+
+        // Loop to determine priority by running through the table 
+        // and looking for lowest priority
+
+         for(i = p+1; i < &ptable.proc[NPROC]; i++) {
+           if(p->state == RUNNABLE && i->priority < p->priority)
+             p = i;    
+         } 
+
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
@@ -390,6 +422,20 @@ scheduler(void)
 
       swtch(&(c->scheduler), p->context);
       switchkvm();
+
+      for(i = ptable.proc; i < &ptable.proc[NPROC]; i++) {
+        if(i == p && i->priority == 31)
+          i->priority = 31;
+        else if(i == p && i->priority < 31) {
+          i->priority = i->priority + 10;
+        }
+        else if(i != p && i->priority > 0) {
+          i->priority = i->priority - 10;
+        }
+        else
+          i->priority = 0;
+      }
+
 
       // Process is done running for now.
       // It should have changed its p->state before coming back.
