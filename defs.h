@@ -120,8 +120,8 @@ void            userinit(void);
 int             wait(int*);
 void            wakeup(void*);
 void            yield(void);
-void		exit(int status);
-int		waitpid(int pid, int *status, int options);
+void		    exit(int status);
+int		        waitpid(int pid, int *status, int options);
 int             setpriority(int);
 
 // swtch.S
