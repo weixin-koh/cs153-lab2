@@ -441,14 +441,10 @@ scheduler(void)
       for(i = ptable.proc; i < &ptable.proc[NPROC]; i++){
         if(i->state == RUNNABLE){
           if(i == p && i->priority < 31){
-            // cprintf("before, priority = %d | ", i->priority);
             i->priority = i->priority + 1;
-            // cprintf("incremented pid = %d, priority = %d\n", i->pid, i->priority);
           }
           else if(i != p && i->priority > 0){
-            // cprintf("before, priority = %d | ", i->priority);
             i->priority = i->priority - 1;
-            // cprintf("decremented pid = %d, priority = %d\n", i->pid, i->priority);
           }
         }
       }
