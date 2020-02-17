@@ -360,21 +360,33 @@ waitpid(int pid, int *status, int options)
   sleep(curproc, &ptable.lock);   
 }
 
-//Priority implementation for Lab2
+
+void
+setpriority(int pid, int priority){
+	struct proc *p;
+
+	if(priority < 0)
+		priority = 0;
+	if(priority > 31)
+		priority = 31;
+	acquire(&ptable.lock);
+	for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+		if(p->pid == pid){
+      p->priority = priority;
+    }
+  }
+	release(&ptable.lock);
+	yield();
+
+  return;
+}
+
+// Get priority of process
 int
-setpriority(int priority) {
-  acquire(&ptable.lock);
-
-  struct proc *curproc = myproc();
-  int previous_p = curproc->priority;
-
-  curproc->priority = priority;
- 
-  release(&ptable.lock);
-
-  yield();
-  return previous_p;
-
+getpriority() {
+	struct proc *curproc = myproc();
+	
+	return curproc->priority;
 }
 
 //PAGEBREAK: 42
@@ -389,10 +401,9 @@ void
 scheduler(void)
 {
   struct proc *p;
+  struct proc *i;
   struct cpu *c = mycpu();
   c->proc = 0;
-
-  // struct proc* i;
   
   for(;;){
     // Enable interrupts on this processor.
@@ -401,17 +412,17 @@ scheduler(void)
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
+      if(p->state != RUNNABLE){
         continue;
-
-
-        // Loop to determine priority by running through the table 
-        // and looking for lowest priority
-
-        //  for(i = p+1; i < &ptable.proc[NPROC]; i++) {
-        //    if(p->state == RUNNABLE && i->priority < p->priority)
-        //      p = i;    
-        //  } 
+      }
+      
+      // Search for process waiting and has higher priority
+      // (but lower priority value)
+      for(i = ptable.proc; i < &ptable.proc[NPROC]; i++){
+        if(i->state == RUNNABLE && i->priority < p->priority){
+          p = i;
+        }
+      }
 
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
@@ -423,26 +434,26 @@ scheduler(void)
       swtch(&(c->scheduler), p->context);
       switchkvm();
 
-      // for(i = ptable.proc; i < &ptable.proc[NPROC]; i++) {
-      //   if(i == p && i->priority == 31)
-      //     i->priority = 31;
-      //   else if(i == p && i->priority < 31) {
-      //     i->priority = i->priority + 10;
-      //   }
-      //   else if(i != p && i->priority > 0) {
-      //     i->priority = i->priority - 10;
-      //   }
-      //   else
-      //     i->priority = 0;
-      // }
-
-
       // Process is done running for now.
       // It should have changed its p->state before coming back.
       c->proc = 0;
+
+      for(i = ptable.proc; i < &ptable.proc[NPROC]; i++){
+        if(i->state == RUNNABLE){
+          if(i == p && i->priority < 31){
+            // cprintf("before, priority = %d | ", i->priority);
+            i->priority = i->priority + 1;
+            // cprintf("incremented pid = %d, priority = %d\n", i->pid, i->priority);
+          }
+          else if(i != p && i->priority > 0){
+            // cprintf("before, priority = %d | ", i->priority);
+            i->priority = i->priority - 1;
+            // cprintf("decremented pid = %d, priority = %d\n", i->pid, i->priority);
+          }
+        }
+      }
     }
     release(&ptable.lock);
-
   }
 }
 

@@ -24,7 +24,8 @@ char* sbrk(int);
 int sleep(int);
 int uptime(void);
 int waitpid(int pid, int *status, int options);
-int setpriority(int);
+void setpriority(int, int);
+int getpriority(void);
 
 // ulib.c
 int stat(const char*, struct stat*);

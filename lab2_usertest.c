@@ -10,8 +10,8 @@ int main(int argc, char *argv[]) {
 	PScheduler();
 	return 0;
 }
-  
-    
+
+// Test ageing in the priority scheduler    
 int PScheduler(void){
 		 
     // use this part to test the priority scheduler. Assuming that the priorities range between range between 0 to 31
@@ -28,6 +28,10 @@ int PScheduler(void){
     for (i = 0; i < 3; i++) {
 		pid = fork();
 		if (pid > 0) {
+			// Only print on first iteration
+			if (i == 0) {
+				printf(1, "Parent (PID: %d) priority [start] = %d \n", getpid(), getpriority());
+			}
 			continue;
 		} else if (pid == 0) {
 			setpriority(getpid(), 30-10*i);
@@ -46,7 +50,9 @@ int PScheduler(void){
 	if (pid > 0) {
 		for (i = 0; i < 3; i++) {
 			wait(0);
+			printf(1, "Parent (PID: %d) priority [wait] = %d \n", getpid(), getpriority());
 		}
+		printf(1, "Parent (PID: %d) priority [end] = %d \n", getpid(), getpriority());
 		printf(1,"\n if processes with highest priority finished first then its correct \n");
 	}
 	exit(0);

@@ -49,9 +49,17 @@ sys_waitpid(void)
 
 int sys_setpriority(void)
 {
-  int p;
-  argint(0, &p);
-  return setpriority(p);
+  int pid;
+	int priority;
+	argint(0, &pid);
+	argint(1, &priority);
+	setpriority(pid, priority);
+  return 0;
+}
+
+int sys_getpriority(void)
+{
+  return getpriority();
 }
 
 int
