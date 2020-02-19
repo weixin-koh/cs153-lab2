@@ -427,6 +427,7 @@ scheduler(void)
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
+      cprintf("\nRunning process PID = %d with priority = %d\n", p->pid, p->priority);
       c->proc = p;
       switchuvm(p);
       p->state = RUNNING;
@@ -442,9 +443,11 @@ scheduler(void)
         if(i->state == RUNNABLE){
           if(i == p && i->priority < 31){
             i->priority = i->priority + 1;
+            cprintf("\nPriority of process with PID = %d INCREASED to %d\n", i->pid, i->priority);
           }
           else if(i != p && i->priority > 0){
             i->priority = i->priority - 1;
+            cprintf("\nPriority of process with PID = %d DECREASED to %d\n", i->pid, i->priority);
           }
         }
       }
