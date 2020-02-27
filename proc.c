@@ -88,7 +88,6 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
-  p->priority = 30;
 
   release(&ptable.lock);
 
@@ -200,7 +199,6 @@ fork(void)
   np->sz = curproc->sz;
   np->parent = curproc;
   *np->tf = *curproc->tf;
-  np->priority = curproc->priority;
 
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
@@ -227,7 +225,7 @@ fork(void)
 // An exited process remains in the zombie state
 // until its parent calls wait() to find out it exited.
 void
-exit(int status)
+exit(void)
 {
   struct proc *curproc = myproc();
   struct proc *p;
@@ -253,7 +251,6 @@ exit(int status)
 
   // Parent might be sleeping in wait().
   wakeup1(curproc->parent);
-  curproc->status = status;
 
   // Pass abandoned children to init.
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
@@ -273,7 +270,7 @@ exit(int status)
 // Wait for a child process to exit and return its pid.
 // Return -1 if this process has no children.
 int
-wait(int *status)
+wait(void)
 {
   struct proc *p;
   int havekids, pid;
@@ -292,20 +289,16 @@ wait(int *status)
         pid = p->pid;
         kfree(p->kstack);
         p->kstack = 0;
-	freevm(p->pgdir);
+        freevm(p->pgdir);
         p->pid = 0;
         p->parent = 0;
         p->name[0] = 0;
         p->killed = 0;
         p->state = UNUSED;
-        p->priority = 30;
         release(&ptable.lock);
-        if(status != 0){
-          *status = p->status;
-  }
-	return pid;
-}
-}
+        return pid;
+      }
+    }
 
     // No point waiting if we don't have any children.
     if(!havekids || curproc->killed){
@@ -315,78 +308,7 @@ wait(int *status)
 
     // Wait for children to exit.  (See wakeup1 call in proc_exit.)
     sleep(curproc, &ptable.lock);  //DOC: wait-sleep
-    }
-}
-
-int 
-waitpid(int pid, int *status, int options)
-{
-  struct proc *p;
-  struct proc *curproc = myproc();
-  int retrieve = 0;
-
-  acquire(&ptable.lock);
-  while(1) 
-  {
-    retrieve = 0;
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    {
-      if(p->parent != curproc)
-	continue;
-      retrieve = 1;
-      if(p->state == ZOMBIE && pid == p->pid && retrieve == 1){
-	pid = p->pid;
-	kfree(p->kstack);
-	p->kstack = 0;
-	freevm(p->pgdir);
-	p->pid = 0;
-	p->parent = 0;
-	p->name[0] = 0;
-	p->killed = 0;
-	p->state = UNUSED;
-	release(&ptable.lock);
-	if(status != 0) {
-	  *status = p->status;
-	}
-	return pid;
-      }
-    }
   }
-  if(!retrieve || curproc->killed)
-  {
-    release(&ptable.lock);
-    return -1;
-  }
-  sleep(curproc, &ptable.lock);   
-}
-
-
-void
-setpriority(int pid, int priority){
-	struct proc *p;
-
-	if(priority < 0)
-		priority = 0;
-	if(priority > 31)
-		priority = 31;
-	acquire(&ptable.lock);
-	for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-		if(p->pid == pid){
-      p->priority = priority;
-    }
-  }
-	release(&ptable.lock);
-	yield();
-
-  return;
-}
-
-// Get priority of process
-int
-getpriority() {
-	struct proc *curproc = myproc();
-	
-	return curproc->priority;
 }
 
 //PAGEBREAK: 42
@@ -401,7 +323,6 @@ void
 scheduler(void)
 {
   struct proc *p;
-  struct proc *i;
   struct cpu *c = mycpu();
   c->proc = 0;
   
@@ -412,22 +333,12 @@ scheduler(void)
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE){
+      if(p->state != RUNNABLE)
         continue;
-      }
-      
-      // Search for process waiting and has higher priority
-      // (but lower priority value)
-      for(i = ptable.proc; i < &ptable.proc[NPROC]; i++){
-        if(i->state == RUNNABLE && i->priority < p->priority){
-          p = i;
-        }
-      }
 
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
-      // cprintf("\nRunning process PID = %d with priority = %d\n", p->pid, p->priority); // Priority debug statement
       c->proc = p;
       switchuvm(p);
       p->state = RUNNING;
@@ -438,21 +349,9 @@ scheduler(void)
       // Process is done running for now.
       // It should have changed its p->state before coming back.
       c->proc = 0;
-
-      for(i = ptable.proc; i < &ptable.proc[NPROC]; i++){
-        if(i->state == RUNNABLE){
-          if(i == p && i->priority < 31){
-            i->priority = i->priority + 1;
-            // cprintf("\nPriority of process with PID = %d INCREASED to %d\n", i->pid, i->priority); // Priority debug statement
-          }
-          else if(i != p && i->priority > 0){
-            i->priority = i->priority - 1;
-            // cprintf("\nPriority of process with PID = %d DECREASED to %d\n", i->pid, i->priority); // Priority debug statement
-          }
-        }
-      }
     }
     release(&ptable.lock);
+
   }
 }
 
