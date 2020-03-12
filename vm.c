@@ -312,65 +312,20 @@ clearpteu(pde_t *pgdir, char *uva)
 
 // Given a parent process's page table, create a copy
 // of it for a child.
-// pde_t*
-// copyuvm(pde_t *pgdir, uint sz)
-// {
-//   pde_t *d;
-//   pte_t *pte;
-//   uint pa, i, flags;
-//   char *mem;
-
-//   if((d = setupkvm()) == 0)
-//     return 0;
-//   for(i = 0; i < sz; i += PGSIZE){
-//     if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
-//       panic("copyuvm: pte should exist");
-//     if(!(*pte & PTE_P))
-//       panic("copyuvm: page not present");
-//     pa = PTE_ADDR(*pte);
-//     flags = PTE_FLAGS(*pte);
-//     if((mem = kalloc()) == 0)
-//       goto bad;
-//     memmove(mem, (char*)P2V(pa), PGSIZE);
-//     if(mappages(d, (void*)i, PGSIZE, V2P(mem), flags) < 0)
-//       goto bad;
-//   }
-//   return d;
-
-// bad:
-//   freevm(d);
-//   return 0;
-// }
-
-// //PAGEBREAK!
-// // Map user virtual address to kernel address.
-// char*
-// uva2ka(pde_t *pgdir, char *uva)
-// {
-//   pte_t *pte;
-
-//   pte = walkpgdir(pgdir, uva, 0);
-//   if((*pte & PTE_P) == 0)
-//     return 0;
-//   if((*pte & PTE_U) == 0)
-//     return 0;
-//   return (char*)P2V(PTE_ADDR(*pte));
-// }
-
 pde_t*
-copyuvm(pde_t *pgdir, uint sz, uint stackSize)
+copyuvm(pde_t *pgdir, uint sz)
 {
   pde_t *d;
   pte_t *pte;
   uint pa, i, flags;
   char *mem;
 
-  if ((d = setupkvm()) == 0)
+  if((d = setupkvm()) == 0)
     return 0;
-  for (i = 0; i < sz; i += PGSIZE) {
-    if ((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
+  for(i = 0; i < sz; i += PGSIZE){
+    if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
       panic("copyuvm: pte should exist");
-    if (!(*pte & PTE_P))
+    if(!(*pte & PTE_P))
       panic("copyuvm: page not present");
     pa = PTE_ADDR(*pte);
     flags = PTE_FLAGS(*pte);
@@ -380,21 +335,6 @@ copyuvm(pde_t *pgdir, uint sz, uint stackSize)
     if(mappages(d, (void*)i, PGSIZE, V2P(mem), flags) < 0)
       goto bad;
   }
-
-  for (i = USERSTACKBASE - PGSIZE + 1; stackSize > 0; i -= PGSIZE, stackSize--) {
-    if ((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
-      panic("copyuvm: pte should exist");
-    if (!(*pte & PTE_P))
-      panic("copyuvm: page not present");
-    pa = PTE_ADDR(*pte);
-    flags = PTE_FLAGS(*pte);
-    if ((mem = kalloc()) == 0)
-      goto bad;
-    memmove(mem, (char*)P2V(pa), PGSIZE);
-    if (mappages(d, (void*)i, PGSIZE, V2P(mem), flags) < 0)
-      goto bad;
-  }
-
   return d;
 
 bad:
@@ -402,8 +342,8 @@ bad:
   return 0;
 }
 
-// PAGEBREAK
-// Map user virtual address to keynel address
+//PAGEBREAK!
+// Map user virtual address to kernel address.
 char*
 uva2ka(pde_t *pgdir, char *uva)
 {

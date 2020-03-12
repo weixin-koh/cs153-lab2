@@ -78,22 +78,6 @@ trap(struct trapframe *tf)
     lapiceoi();
     break;
 
-  case T_PGFLT:
-    ;
-    uint faultAddr = rcr2();
-    uint numPages = myproc()->stackSize + 1;
-
-    if (faultAddr >= USERSTACKBASE - ((PGSIZE * numPages) + 1)) {
-      if (allocuvm(myproc()->pgdir, PGROUNDDOWN(faultAddr), PGROUNDDOWN(faultAddr) + 8) == 0){
-        cprintf("There was an error in allocuvm\n");
-        break;
-      }
-
-      myproc()->stackSize += 1;
-      cprintf("Successfully increased the size of the stack\n");
-      break;
-    }
-
   //PAGEBREAK: 13
   default:
     if(myproc() == 0 || (tf->cs&3) == 0){
