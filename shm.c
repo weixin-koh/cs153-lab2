@@ -34,6 +34,7 @@ int shm_open(int id, char **pointer) {
   acquire(&(shm_table.lock));
 
   for (i = 0; i< 64; i++) {
+    // Case 1: Memory segment already exists
     if (shm_table.shm_pages[i].id == id) {
       mappages(myproc()->pgdir, (void*) PGROUNDUP(myproc()->sz), PGSIZE, V2P(shm_table.shm_pages[i].frame), PTE_W|PTE_U);
       shm_table.shm_pages[i].refcnt++;
@@ -42,10 +43,8 @@ int shm_open(int id, char **pointer) {
       release(&(shm_table.lock));
       return 0;
     }
-  }
 
-  // Shared memory DNE
-  for (i = 0; i < 64; ++i) {
+    // Case 2: Shared memory segment does not exist
     if (shm_table.shm_pages[i].id == 0) {
       shm_table.shm_pages[i].id = id;
       shm_table.shm_pages[i].frame = kalloc();
@@ -58,7 +57,7 @@ int shm_open(int id, char **pointer) {
       return 0;
     }
   }
-  
+
   release(&(shm_table.lock));
 
   return 0;
